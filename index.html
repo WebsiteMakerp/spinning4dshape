@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Bigger Hacker Tesseract</title>
+  <style>
+    body {
+      margin: 0;
+      background: black;
+      overflow: hidden;
+    }
+
+    canvas {
+      display: block;
+      background-color: black;
+    }
+  </style>
+</head>
+<body>
+<canvas id="canvas"></canvas>
+
+<script>
+  const canvas = document.getElementById("canvas");
+  const ctx = canvas.getContext("2d");
+
+  // Fullscreen canvas
+  function resize() {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+  }
+  window.addEventListener('resize', resize);
+  resize();
+
+  const scale = 400;  // Increased size
+  const centerX = () => canvas.width / 2;
+  const centerY = () => canvas.height / 2;
+
+  // 16 vertices of tesseract
+  const vertices = [];
+  for (let i = 0; i < 16; i++) {
+    vertices.push([
+      (i & 1) ? 1 : -1,
+      (i & 2) ? 1 : -1,
+      (i & 4) ? 1 : -1,
+      (i & 8) ? 1 : -1
+    ]);
+  }
+
+  // Edges where vertices differ by exactly 1 coordinate
+  const edges = [];
+  for (let i = 0; i < 16; i++) {
+    for (let j = i + 1; j < 16; j++) {
+      let diff = 0;
+      for (let k = 0; k < 4; k++) {
+        if (vertices[i][k] !== vertices[j][k]) diff++;
+      }
+      if (diff === 1) edges.push([i, j]);
+    }
+  }
+
+  let angle = 0;
+
+  function rotate4D(v, a, b, theta) {
+    const c = Math.cos(theta);
+    const s = Math.sin(theta);
+    const tempA = v[a] * c - v[b] * s;
+    const tempB = v[a] * s + v[b] * c;
+    const result = [...v];
+    result[a] = tempA;
+    result[b] = tempB;
+    return result;
+  }
+
+  function project(v) {
+    // 4D to 3D projection
+    let w = 1 / (2 - v[3]);
+    let x = v[0] * w;
+    let y = v[1] * w;
+    let z = v[2] * w;
+
+    // 3D to 2D projection
+    const depth = 1 / (4 - z);
+    return [
+      x * depth * scale + centerX(),
+      y * depth * scale + centerY()
+    ];
+  }
+
+  function draw() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    const points2D = vertices.map(v => {
+      let rotated = rotate4D(v, 0, 1, angle);
+      rotated = rotate4D(rotated, 2, 3, angle);
+      rotated = rotate4D(rotated, 0, 2, angle / 2);
+      return project(rotated);
+    });
+
+    ctx.strokeStyle = "#00ff00";
+    ctx.lineWidth = 2;
+    ctx.shadowColor = "#00ff00";
+    ctx.shadowBlur = 15;
+
+    for (let [a, b] of edges) {
+      const [x1, y1] = points2D[a];
+      const [x2, y2] = points2D[b];
+      ctx.beginPath();
+      ctx.moveTo(x1, y1);
+      ctx.lineTo(x2, y2);
+      ctx.stroke();
+    }
+
+    angle += 0.008;
+    requestAnimationFrame(draw);
+  }
+
+  draw();
+</script>
+</body>
+</html>
